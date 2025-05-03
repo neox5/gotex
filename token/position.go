@@ -78,19 +78,32 @@ func (f *File) Position(p Pos) (pos Position) {
 	return
 }
 
-func (f *File) line(offset int) (line int) {
+func (f *File) line(offset int) int {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
+	// check if offset is beyond all lines
+	if i := len(f.lines); i > 0 && offset >= f.lines[i-1] {
+		return i - 1
+	}
+
 	for i, o := range f.lines {
 		if offset < o {
-			line = i
-			break
+			return i - 1
 		}
 	}
-	return
+	return 0
 }
 
 // column returns the column for a given offset and line number.
 func (f *File) column(offset, line int) int {
-	return offset - line
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
+	if line < 0 || line >= len(f.lines) {
+		return 0
+	}
+	return offset - f.lines[line] + 1 // +1 for 1-based column numbering
 }
 
 func (f *File) position(p Pos) Position {
@@ -101,7 +114,7 @@ func (f *File) position(p Pos) Position {
 	return Position{
 		Filename: f.name,
 		Offset:   o,
-		Line:     l,
+		Line:     l + 1,
 		Column:   c,
 	}
 }
