@@ -22,9 +22,9 @@ const (
 
 	// Keywords begin
 	keywords_beg
-	KW_INCLUDE // \include
-	KW_BEGIN   // \begin environment
-	KW_END     // \end environment
+	KW_IMPORT // \import
+	KW_BEGIN  // \begin environment
+	KW_END    // \end environment
 	keywords_end
 )
 
@@ -43,9 +43,9 @@ var tokens = [...]string{
 	WHITESPACE: "WHITESPACE",
 	NEWLINE:    "NEWLINE",
 
-	KW_INCLUDE: "\\include",
-	KW_BEGIN:   "\\begin",
-	KW_END:     "\\end",
+	KW_IMPORT: "\\import",
+	KW_BEGIN:  "\\begin",
+	KW_END:    "\\end",
 }
 
 // String returns the string representation of the token
