@@ -187,7 +187,9 @@ gotex/
 
 token/ – foundational definitions (positions, tokens) (done)
 
-scanner/ – depends only on token
+scanner/ – depends only on token (done)
+
+ast/ - no dependencies
 
 parser/ – depends on scanner and token
 
