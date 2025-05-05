@@ -41,13 +41,9 @@ type Scanner struct {
 	// Positioning
 	file     *token.File    // source file handle
 	fset     *token.FileSet // file set for position information
-	pos      token.Pos      // current position
 	offset   int            // current offset in src
 	rdOffset int            // reading offset (position after current character)
 	ch       rune           // current character
-
-	// Token tracking
-	tokPos token.Pos // position of the current token
 
 	// Error handling
 	errHandler ErrorHandler
@@ -62,7 +58,6 @@ func (s *Scanner) Init(fset *token.FileSet, file *token.File, src []byte, errHan
 
 	s.offset = 0
 	s.rdOffset = 0
-	s.pos = token.Pos(file.Base())
 
 	// Initialize by reading the first character
 	s.next()
@@ -87,7 +82,6 @@ func (s *Scanner) next() {
 	}
 	s.rdOffset += width
 	s.ch = r
-	s.pos = token.Pos(int(s.file.Base()) + s.offset)
 
 	// Update line information if we encounter a newline
 	if r == '\n' {
@@ -106,7 +100,7 @@ func (s *Scanner) peek() byte {
 // error reports an error at the current position
 func (s *Scanner) error(msg string) {
 	if s.errHandler != nil {
-		s.errHandler(s.fset.Position(s.pos), msg)
+		s.errHandler(s.fset.Position(s.file.Pos(s.offset)), msg)
 	}
 }
 
@@ -197,9 +191,7 @@ func (s *Scanner) Scan() (pos token.Pos, tok token.Token, lit string) {
 	// Skip whitespace
 	s.skipWhitespace()
 
-	// Remember the token position
-	s.tokPos = s.pos
-	pos = s.tokPos
+	pos = s.file.Pos(s.offset)
 
 	// Determine token based on the current character
 	switch ch := s.ch; {
@@ -217,14 +209,14 @@ func (s *Scanner) Scan() (pos token.Pos, tok token.Token, lit string) {
 	case ch == '\\':
 		s.next() // consume the \
 
-		switch s.ch {
+		ch := s.ch
+		switch ch {
 		case '\\':
 			s.next()
 			tok = token.BACKSLASH
 			lit = "\\"
 
 		case '@', '$', '%', '&', '#', '_', '{', '}', '~', '^', '[', ']':
-			ch := s.ch // save current character
 			s.next()
 			tok = token.WORD
 			lit = string(ch)

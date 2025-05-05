@@ -78,6 +78,11 @@ func (f *File) Position(p Pos) (pos Position) {
 	return
 }
 
+// Pos returns the Pos value for the given file offset.
+func (f *File) Pos(offset int) Pos {
+	return Pos(f.base + offset)
+}
+
 func (f *File) line(offset int) int {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
