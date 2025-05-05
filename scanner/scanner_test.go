@@ -58,6 +58,29 @@ Normal text`
 	runScannerTest(t, src, expected, "comment_test.tex")
 }
 
+func TestEscapedSymbols(t *testing.T) {
+    src := `\\ \ \newline \@\$\%\&\#\_\{\}\~\^`
+
+    expected := []tokenData{
+        {token.BACKSLASH, "\\"},
+        {token.COMMAND, "space"},
+        {token.COMMAND, "newline"},
+        {token.WORD, "@"},
+        {token.WORD, "$"},
+        {token.WORD, "%"},
+        {token.WORD, "&"},
+        {token.WORD, "#"},
+        {token.WORD, "_"},
+        {token.WORD, "{"},
+        {token.WORD, "}"},
+        {token.WORD, "~"},
+        {token.WORD, "^"},
+        {token.EOF, "EOF"},
+    }
+
+    runScannerTest(t, src, expected, "special_commands_test.tex")
+}
+
 func TestScanCommands(t *testing.T) {
 	src := `\section{Title}
 \begin{document}

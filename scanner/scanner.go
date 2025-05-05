@@ -224,9 +224,10 @@ func (s *Scanner) Scan() (pos token.Pos, tok token.Token, lit string) {
 			lit = "\\"
 
 		case '@', '$', '%', '&', '#', '_', '{', '}', '~', '^', '[', ']':
+			ch := s.ch // save current character
 			s.next()
 			tok = token.WORD
-			lit = string(s.ch)
+			lit = string(ch)
 
 		default:
 			tok, lit = s.scanCommand()
