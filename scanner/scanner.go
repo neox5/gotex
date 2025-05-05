@@ -127,7 +127,7 @@ func (s *Scanner) scanCommand() (token.Token, string) {
 
 	// Special case: if \ is followed by a space or newline,
 	// it's a special "control space" or escaped newline
-	if isSpaceChar(s.ch) || s.ch == '\n' {
+	if token.IsSpaceChar(s.ch) || s.ch == '\n' {
 		cmdName := ""
 		if s.ch == '\n' {
 			cmdName = "newline"
@@ -139,15 +139,15 @@ func (s *Scanner) scanCommand() (token.Token, string) {
 	}
 
 	// Scan the command name
-	for isCommandChar(s.ch) {
+	for token.IsCommandChar(s.ch) {
 		s.next()
 	}
 
 	// Extract the command name from source (without the \)
 	cmdName := string(s.src[offs:s.offset])
 
-	// Look up the command name directly
-	return token.Lookup(cmdName), cmdName
+	// Look up the command name to determine if it's a keyword
+	return token.LookupCommand(cmdName), cmdName
 }
 
 // scanWord scans a word (sequence of letters)
@@ -168,7 +168,7 @@ func (s *Scanner) scanNumber() string {
 	offs := s.offset - 1 // -1 to include the first digit
 
 	// Scan the integer part
-	for isDigit(s.ch) {
+	for token.IsDigit(s.ch) {
 		s.next()
 	}
 
@@ -179,7 +179,7 @@ func (s *Scanner) scanNumber() string {
 // skipWhitespace skips whitespace characters
 func (s *Scanner) skipWhitespace() bool {
 	skipped := false
-	for isSpaceChar(s.ch) {
+	for token.IsSpaceChar(s.ch) {
 		s.next()
 		skipped = true
 	}
@@ -209,83 +209,30 @@ func (s *Scanner) Scan() (pos token.Pos, tok token.Token, lit string) {
 	case ch == '\\':
 		s.next() // consume the \
 
-		ch := s.ch
-		switch ch {
-		case '\\':
+		switch {
+		case s.ch == '\\':
 			s.next()
 			tok = token.BACKSLASH
 			lit = "\\"
 
-		case '@', '$', '%', '&', '#', '_', '{', '}', '~', '^', '[', ']':
+		case token.IsSymbol(s.ch):
+			// Escaped symbol
+			sym := s.ch
 			s.next()
 			tok = token.WORD
-			lit = string(ch)
+			lit = string(sym)
 
 		default:
 			tok, lit = s.scanCommand()
 		}
 
-	case ch == '{':
-		// Left brace
-		s.next() // consume the {
-		tok = token.LBRACE
-		lit = "{"
+	case token.IsSymbol(ch):
+		// Symbol token
+		s.next() // consume the symbol
+		tok = token.LookupSymbol(ch)
+		lit = string(ch)
 
-	case ch == '}':
-		// Right brace
-		s.next() // consume the }
-		tok = token.RBRACE
-		lit = "}"
-
-	case ch == '[':
-		// Left bracket
-		s.next() // consume the [
-		tok = token.LBRACKET
-		lit = "["
-
-	case ch == ']':
-		// Right bracket
-		s.next() // consume the ]
-		tok = token.RBRACKET
-		lit = "]"
-
-	case ch == '.':
-		// Period
-		s.next() // consume the .
-		tok = token.PERIOD
-		lit = "."
-
-	case ch == ',':
-		// Comma
-		s.next() // consume the ,
-		tok = token.COMMA
-		lit = ","
-
-	case ch == ';':
-		// Semicolon
-		s.next() // consume the ;
-		tok = token.SEMICOLON
-		lit = ";"
-
-	case ch == '=':
-		// Equals
-		s.next() // consume the =
-		tok = token.EQUALS
-		lit = "="
-
-	case ch == ':':
-		// Colon
-		s.next() // consume the :
-		tok = token.COLON
-		lit = ":"
-
-	case ch == '\n':
-		// Newline
-		s.next() // consume the newline
-		tok = token.NEWLINE
-		lit = "\n"
-
-	case isDigit(ch):
+	case token.IsDigit(ch):
 		// Number
 		s.next()
 		tok = token.NUMBER
@@ -306,21 +253,4 @@ func (s *Scanner) Scan() (pos token.Pos, tok token.Token, lit string) {
 	}
 
 	return
-}
-
-// Helper functions
-
-// isCommandChar reports whether ch can be part of a TeX command name
-func isCommandChar(ch rune) bool {
-	return unicode.IsLetter(ch) || ch == '@'
-}
-
-// isSpaceChar reports whether ch is a space character
-func isSpaceChar(ch rune) bool {
-	return ch == ' ' || ch == '\t'
-}
-
-// isDigit reports whether ch is a digit
-func isDigit(ch rune) bool {
-	return '0' <= ch && ch <= '9'
 }
