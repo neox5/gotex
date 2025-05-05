@@ -215,9 +215,22 @@ func (s *Scanner) Scan() (pos token.Pos, tok token.Token, lit string) {
 		lit = s.scanComment()
 
 	case ch == '\\':
-		// Command
 		s.next() // consume the \
-		tok, lit = s.scanCommand()
+
+		switch s.ch {
+		case '\\':
+			s.next()
+			tok = token.BACKSLASH
+			lit = "\\"
+
+		case '@', '$', '%', '&', '#', '_', '{', '}', '~', '^', '[', ']':
+			s.next()
+			tok = token.WORD
+			lit = string(s.ch)
+
+		default:
+			tok, lit = s.scanCommand()
+		}
 
 	case ch == '{':
 		// Left brace

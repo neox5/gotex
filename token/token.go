@@ -27,11 +27,27 @@ const (
 	EQUALS    // =
 	COLON     // :
 
-	// Keywords begin
+	// Symbols (syntax-sensitive, used in environments or math)
+	AMPERSAND  // &
+	DOLLAR     // $
+	PERCENT    // %
+	HASH       // #
+	CARET      // ^
+	UNDERSCORE // _
+	TILDE      // ~
+	PIPE       // |
+	BACKSLASH  // literal \
+	LESS       // <
+	GREATER    // >
+	AT         // @
+	STAR       // *
+	BANG       // !
+
+	// Keywords (used for syntax-only primitives)
 	keywords_beg
-	KW_IMPORT // \import
-	KW_BEGIN  // \begin environment
-	KW_END    // \end environment
+	IMPORT // \import
+	ENV    // \begin environment
+	ENVEND // \end environment
 	keywords_end
 )
 
@@ -58,9 +74,24 @@ var tokens = [...]string{
 	EQUALS:    "=",
 	COLON:     ":",
 
-	KW_IMPORT: "import",
-	KW_BEGIN:  "begin",
-	KW_END:    "end",
+	AMPERSAND:  "&",
+	DOLLAR:     "$",
+	PERCENT:    "%",
+	HASH:       "#",
+	CARET:      "^",
+	UNDERSCORE: "_",
+	TILDE:      "~",
+	PIPE:       "|",
+	BACKSLASH:  "\\",
+	LESS:       "<",
+	GREATER:    ">",
+	AT:         "@",
+	STAR:       "*",
+	BANG:       "!",
+
+	IMPORT: "import",
+	ENV:    "begin",
+	ENVEND: "end",
 }
 
 // String returns the string representation of the token
