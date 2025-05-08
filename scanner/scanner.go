@@ -3,7 +3,6 @@ package scanner
 import (
 	"fmt"
 	"io"
-	"unicode"
 	"unicode/utf8"
 
 	"github.com/neox5/gotex/token"
@@ -63,61 +62,72 @@ func (s *Scanner) Init(fset *token.FileSet, file *token.File, src []byte, errHan
 	s.next()
 }
 
+const (
+	bom = 0xFEFF // byte order mark, only permitted as very first character
+	eof = -1     // end of file
+)
+
 // next reads the next Unicode character into s.ch and updates positioning
 func (s *Scanner) next() {
-	if s.rdOffset >= len(s.src) {
+	if s.rdOffset < len(s.src) {
 		s.offset = s.rdOffset
-		s.ch = -1 // EOF marker
-		return
-	}
-
-	s.offset = s.rdOffset
-	r, width := rune(s.src[s.rdOffset]), 1
-	if r >= utf8.RuneSelf {
-		// Not ASCII - decode the UTF-8 rune
-		r, width = utf8.DecodeRune(s.src[s.rdOffset:])
-		if r == utf8.RuneError && width == 1 {
-			s.error("invalid UTF-8 encoding")
+		if s.ch == '\n' {
+			s.file.AddLine(s.offset)
 		}
-	}
-	s.rdOffset += width
-	s.ch = r
-
-	// Update line information if we encounter a newline
-	if r == '\n' {
-		s.file.AddLine(s.offset)
+		r, w := rune(s.src[s.rdOffset]), 1
+		switch {
+		case r == 0:
+			s.error(s.offset, "illegal character NUL")
+		case r >= utf8.RuneSelf:
+			// not ASCII
+			r, w = utf8.DecodeRune(s.src[s.rdOffset:])
+			if r == utf8.RuneError && w == 1 {
+				in := s.src[s.rdOffset:]
+				if s.offset == 0 &&
+					len(in) >= 2 &&
+					(in[0] == 0xFF && in[1] == 0xFE || in[0] == 0xFE && in[1] == 0xFF) {
+					// U+FEFF BOM at start of file, encoded as big- or little-endian
+					// UCS-2 (i.e. 2-byte UTF-16). Give specific error (go.dev/issue/71950).
+					s.error(s.offset, "illegal UTF-8 encoding (got UTF-16)")
+					s.rdOffset += len(in) // consume all input to avoid error cascade
+				} else {
+					s.error(s.offset, "illegal UTF-8 encoding")
+				}
+			} else if r == bom && s.offset > 0 {
+				s.error(s.offset, "illegal byte order mark")
+			}
+		}
+		s.rdOffset += w
+		s.ch = r
+	} else {
+		s.offset = len(s.src)
+		if s.ch == '\n' {
+			s.file.AddLine(s.offset)
+		}
+		s.ch = eof
 	}
 }
 
-// peek returns the byte following the most recently read character without advancing
-func (s *Scanner) peek() byte {
-	if s.rdOffset >= len(s.src) {
-		return 0
-	}
-	return s.src[s.rdOffset]
-}
-
-// error reports an error at the current position
-func (s *Scanner) error(msg string) {
+func (s *Scanner) error(offs int, msg string) {
 	if s.errHandler != nil {
-		s.errHandler(s.fset.Position(s.file.Pos(s.offset)), msg)
+		s.errHandler(s.fset.Position(s.file.Pos(offs)), msg)
 	}
+}
+
+func (s *Scanner) errorf(offs int, format string, args ...any) {
+	s.error(offs, fmt.Sprintf(format, args...))
 }
 
 // scanComment scans a TeX comment (% comment)
 func (s *Scanner) scanComment() string {
-	// Save the starting position of the comment
-	offs := s.offset - 1 // -1 to include the % character
+	offs := s.offset
 
-	// Scan to the end of the line
-	for s.ch != '\n' && s.ch >= 0 {
+	// Scan to the end of the line or file
+	for s.ch != '\n' && s.ch != eof {
 		s.next()
 	}
 
-	// Extract the comment from source
-	comment := string(s.src[offs:s.offset])
-
-	return comment
+	return string(s.src[offs:s.offset])
 }
 
 // scanCommand scans a TeX command sequence (\command)
@@ -125,37 +135,24 @@ func (s *Scanner) scanCommand() (token.Token, string) {
 	// Save the starting position of the command (just after the \)
 	offs := s.offset
 
-	// Special case: if \ is followed by a space or newline,
-	// it's a special "control space" or escaped newline
-	if token.IsSpaceChar(s.ch) || s.ch == '\n' {
-		cmdName := ""
-		if s.ch == '\n' {
-			cmdName = "newline"
-		} else {
-			cmdName = "space"
-		}
-		s.next() // consume the space/newline
-		return token.COMMAND, cmdName
-	}
-
 	// Scan the command name
-	for token.IsCommandChar(s.ch) {
+	for isCommandChar(s.ch) {
 		s.next()
 	}
 
 	// Extract the command name from source (without the \)
 	cmdName := string(s.src[offs:s.offset])
 
-	// Look up the command name to determine if it's a keyword
-	return token.LookupCommand(cmdName), cmdName
+	// Look up keyword or return command token (fallback if no keyword)
+	return token.LookupKeyword(cmdName), cmdName
 }
 
 // scanWord scans a word (sequence of letters)
 func (s *Scanner) scanWord() string {
-	offs := s.offset - 1 // -1 to include the first letter
+	offs := s.offset
 
 	// Scan the word
-	for unicode.IsLetter(s.ch) || s.ch == '-' || s.ch == '\'' {
+	for isLetter(s.ch) {
 		s.next()
 	}
 
@@ -168,7 +165,7 @@ func (s *Scanner) scanNumber() string {
 	offs := s.offset - 1 // -1 to include the first digit
 
 	// Scan the integer part
-	for token.IsDigit(s.ch) {
+	for isDigit(s.ch) {
 		s.next()
 	}
 
@@ -179,7 +176,7 @@ func (s *Scanner) scanNumber() string {
 // skipWhitespace skips whitespace characters
 func (s *Scanner) skipWhitespace() bool {
 	skipped := false
-	for token.IsSpaceChar(s.ch) {
+	for isSpaceChar(s.ch) {
 		s.next()
 		skipped = true
 	}
@@ -195,61 +192,70 @@ func (s *Scanner) Scan() (pos token.Pos, tok token.Token, lit string) {
 
 	// Determine token based on the current character
 	switch ch := s.ch; {
-	case ch == -1:
-		// End of file
-		tok = token.EOF
-		lit = "EOF"
-
-	case ch == '%':
-		// Comment
-		s.next() // consume the %
-		tok = token.COMMENT
-		lit = s.scanComment()
+	case isLetter(ch):
+		tok = token.WORD
+		lit = s.scanWord()
 
 	case ch == '\\':
 		s.next() // consume the \
 
-		switch {
-		case s.ch == '\\':
-			s.next()
-			tok = token.BACKSLASH
-			lit = "\\"
+		switch ch = s.ch; {
+		case isCommandChar(ch):
+			tok, lit = s.scanCommand()
 
-		case token.IsSymbol(s.ch):
-			// Escaped symbol
-			sym := s.ch
+		case token.IsSymbol(ch):
 			s.next()
 			tok = token.WORD
-			lit = string(sym)
+			lit = string(ch)
+
+		case isSpaceChar(ch) || ch == '\n':
+			// Special case: if \ is followed by a space or newline,
+			// it's a special "control space" or escaped newline
+			cmd := ""
+			if ch == '\n' {
+				cmd = "newline"
+			} else {
+				cmd = "space"
+			}
+			s.next() // consume the space/newline
+			tok, lit = token.COMMAND, cmd
 
 		default:
-			tok, lit = s.scanCommand()
+			s.next()
+			tok, lit = token.ILLEGAL, string(ch)
 		}
 
-	case token.IsSymbol(ch):
-		// Symbol token
-		s.next() // consume the symbol
-		tok = token.LookupSymbol(ch)
-		lit = string(ch)
+	case ch == '\n':
+		s.next()
+		tok = token.NEWLINE
+		lit = "\n"
 
-	case token.IsDigit(ch):
-		// Number
+	case isDigit(ch):
 		s.next()
 		tok = token.NUMBER
 		lit = s.scanNumber()
 
-	case unicode.IsLetter(ch):
-		// Word
+	case ch == '%':
+		fmt.Println("here")
+		// Comment
+		tok = token.COMMENT
+		lit = s.scanComment()
+
+	case token.IsSymbol(ch):
 		s.next()
-		tok = token.WORD
-		lit = s.scanWord()
+		tok = token.LookupSymbol(ch)
+		lit = string(ch)
+
+	case ch == eof:
+		tok = token.EOF
+		lit = "EOF"
 
 	default:
 		// Anything else is treated as illegal
 		s.next() // consume the character
 		tok = token.ILLEGAL
 		lit = string(ch)
-		s.error(fmt.Sprintf("illegal character %#U", ch))
+		s.error(s.offset, fmt.Sprintf("illegal character %#U", ch))
 	}
 
 	return

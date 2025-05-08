@@ -38,8 +38,8 @@ func runScannerTest(t *testing.T, src string, expected []tokenData, filename str
 
 func TestScanComments(t *testing.T) {
 	src := `% This is a comment
-\section{Hello} % Inline comment
-Normal text`
+	\section{Hello} % Inline comment
+	Normal text`
 
 	expected := []tokenData{
 		{token.COMMENT, "% This is a comment"},
@@ -59,26 +59,26 @@ Normal text`
 }
 
 func TestEscapedSymbols(t *testing.T) {
-    src := `\\ \ \newline \@\$\%\&\#\_\{\}\~\^`
+	src := `\\ \ \newline \@\$\%\&\#\_\{\}\~\^`
 
-    expected := []tokenData{
-        {token.BACKSLASH, "\\"},
-        {token.COMMAND, "space"},
-        {token.COMMAND, "newline"},
-        {token.WORD, "@"},
-        {token.WORD, "$"},
-        {token.WORD, "%"},
-        {token.WORD, "&"},
-        {token.WORD, "#"},
-        {token.WORD, "_"},
-        {token.WORD, "{"},
-        {token.WORD, "}"},
-        {token.WORD, "~"},
-        {token.WORD, "^"},
-        {token.EOF, "EOF"},
-    }
+	expected := []tokenData{
+		{token.BACKSLASH, "\\"},
+		{token.COMMAND, "space"},
+		{token.COMMAND, "newline"},
+		{token.WORD, "@"},
+		{token.WORD, "$"},
+		{token.WORD, "%"},
+		{token.WORD, "&"},
+		{token.WORD, "#"},
+		{token.WORD, "_"},
+		{token.WORD, "{"},
+		{token.WORD, "}"},
+		{token.WORD, "~"},
+		{token.WORD, "^"},
+		{token.EOF, "EOF"},
+	}
 
-    runScannerTest(t, src, expected, "special_commands_test.tex")
+	runScannerTest(t, src, expected, "special_commands_test.tex")
 }
 
 func TestScanCommands(t *testing.T) {
