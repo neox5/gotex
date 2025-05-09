@@ -22,16 +22,15 @@ const (
 	keywords_end
 
 	symbols_beg
-	// Symbols (all punctuation and special symbols)
-	LBRACE   // {
-	RBRACE   // }
-	LBRACKET // [
-	RBRACKET // ]
+	LBRACE // {
+	RBRACE // }
+	LBRACK // [
+	RBRACK // ]
 
 	PERIOD    // .
+	COLON     // :
 	COMMA     // ,
 	SEMICOLON // ;
-	COLON     // :
 
 	EQUALS    // =
 	LESS      // <
@@ -46,6 +45,7 @@ const (
 	PERCENT    // %
 	HASH       // #
 	CARET      // ^
+	DASH       // -
 	UNDERSCORE // _
 	TILDE      // ~
 	PIPE       // |
@@ -70,16 +70,16 @@ var tokens = [...]string{
 	ENV:    "begin",
 	ENVEND: "end",
 
-	LBRACE:   "{",
-	RBRACE:   "}",
-	LBRACKET: "[",
-	RBRACKET: "]",
+	LBRACE: "{",
+	RBRACE: "}",
+	LBRACK: "[",
+	RBRACK: "]",
 
 	// Punctuation
 	PERIOD:    ".",
+	COLON:     ":",
 	COMMA:     ",",
 	SEMICOLON: ";",
-	COLON:     ":",
 
 	// Operators
 	EQUALS:    "=",
@@ -96,6 +96,7 @@ var tokens = [...]string{
 	PERCENT:    "%",
 	HASH:       "#",
 	CARET:      "^",
+	DASH:       "-",
 	UNDERSCORE: "_",
 	TILDE:      "~",
 	PIPE:       "|",

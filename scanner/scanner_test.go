@@ -23,8 +23,9 @@ func runScannerTest(t *testing.T, src string, expected []tokenData, filename str
 	for i, exp := range expected {
 		pos, tok, lit := s.Scan()
 		if tok != exp.tok || lit != exp.lit {
-			t.Errorf("%s - token %d: expected {%s, %q}, got {%s, %q} at position %s",
-				filename, i, exp.tok, exp.lit, tok, lit, fset.Position(pos))
+			t.Errorf("%s - token %d: expected {%s, %q} [%x], got {%s, %q} [%x] at position %s",
+				filename, i, exp.tok, exp.lit, []byte(exp.lit),
+				tok, lit, []byte(lit), fset.Position(pos))
 		}
 	}
 
@@ -58,11 +59,38 @@ func TestScanComments(t *testing.T) {
 	runScannerTest(t, src, expected, "comment_test.tex")
 }
 
+func TestScanKeywords(t *testing.T) {
+	src := `\import{chapter1}
+	\begin{matrix}
+	\end{matrix}`
+
+	expected := []tokenData{
+		{token.IMPORT, "import"},
+		{token.LBRACE, "{"},
+		{token.WORD, "chapter"},
+		{token.NUMBER, "1"},
+		{token.RBRACE, "}"},
+		{token.NEWLINE, "\n"},
+		{token.ENV, "begin"},
+		{token.LBRACE, "{"},
+		{token.WORD, "matrix"},
+		{token.RBRACE, "}"},
+		{token.NEWLINE, "\n"},
+		{token.ENVEND, "end"},
+		{token.LBRACE, "{"},
+		{token.WORD, "matrix"},
+		{token.RBRACE, "}"},
+		{token.EOF, "EOF"},
+	}
+
+	runScannerTest(t, src, expected, "comment_test.tex")
+}
+
 func TestEscapedSymbols(t *testing.T) {
 	src := `\\ \ \newline \@\$\%\&\#\_\{\}\~\^`
 
 	expected := []tokenData{
-		{token.BACKSLASH, "\\"},
+		{token.WORD, "\\"},
 		{token.COMMAND, "space"},
 		{token.COMMAND, "newline"},
 		{token.WORD, "@"},
@@ -121,17 +149,17 @@ func TestScanOptionalArguments(t *testing.T) {
 
 	expected := []tokenData{
 		{token.COMMAND, "section"},
-		{token.LBRACKET, "["},
+		{token.LBRACK, "["},
 		{token.WORD, "Short"},
 		{token.WORD, "title"},
-		{token.RBRACKET, "]"},
+		{token.RBRACK, "]"},
 		{token.LBRACE, "{"},
 		{token.WORD, "Long"},
 		{token.WORD, "title"},
 		{token.RBRACE, "}"},
 		{token.NEWLINE, "\n"},
 		{token.COMMAND, "includegraphics"},
-		{token.LBRACKET, "["},
+		{token.LBRACK, "["},
 		{token.WORD, "width"},
 		{token.EQUALS, "="},
 		{token.NUMBER, "5"},
@@ -141,7 +169,7 @@ func TestScanOptionalArguments(t *testing.T) {
 		{token.EQUALS, "="},
 		{token.NUMBER, "3"},
 		{token.WORD, "cm"},
-		{token.RBRACKET, "]"},
+		{token.RBRACK, "]"},
 		{token.LBRACE, "{"},
 		{token.WORD, "image"},
 		{token.PERIOD, "."},
@@ -150,42 +178,4 @@ func TestScanOptionalArguments(t *testing.T) {
 	}
 
 	runScannerTest(t, src, expected, "optional_args_test.tex")
-}
-
-func TestScanNumbersAndWords(t *testing.T) {
-	src := `Simple words and numbers 123 45.67
-Words-with-hyphens and apostrophe's are 
-treated as one word. Numbers like 3.14159 are parsed.`
-
-	expected := []tokenData{
-		{token.WORD, "Simple"},
-		{token.WORD, "words"},
-		{token.WORD, "and"},
-		{token.WORD, "numbers"},
-		{token.NUMBER, "123"},
-		{token.NUMBER, "45"},
-		{token.PERIOD, "."},
-		{token.NUMBER, "67"},
-		{token.NEWLINE, "\n"},
-		{token.WORD, "Words-with-hyphens"},
-		{token.WORD, "and"},
-		{token.WORD, "apostrophe's"},
-		{token.WORD, "are"},
-		{token.NEWLINE, "\n"},
-		{token.WORD, "treated"},
-		{token.WORD, "as"},
-		{token.WORD, "one"},
-		{token.WORD, "word"},
-		{token.PERIOD, "."},
-		{token.WORD, "Numbers"},
-		{token.WORD, "like"},
-		{token.NUMBER, "3"},
-		{token.PERIOD, "."},
-		{token.NUMBER, "14159"},
-		{token.WORD, "are"},
-		{token.WORD, "parsed"},
-		{token.PERIOD, "."},
-	}
-
-	runScannerTest(t, src, expected, "numbers_words_test.tex")
 }

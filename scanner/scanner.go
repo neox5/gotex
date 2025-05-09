@@ -236,7 +236,6 @@ func (s *Scanner) Scan() (pos token.Pos, tok token.Token, lit string) {
 		lit = s.scanNumber()
 
 	case ch == '%':
-		fmt.Println("here")
 		// Comment
 		tok = token.COMMENT
 		lit = s.scanComment()
