@@ -39,11 +39,14 @@ func runScannerTest(t *testing.T, src string, expected []tokenData, filename str
 
 func TestScanComments(t *testing.T) {
 	src := `% This is a comment
+	% This is a second comment
 	\section{Hello} % Inline comment
 	Normal text`
 
 	expected := []tokenData{
 		{token.COMMENT, "% This is a comment"},
+		{token.NEWLINE, "\n"},
+		{token.COMMENT, "% This is a second comment"},
 		{token.NEWLINE, "\n"},
 		{token.COMMAND, "section"},
 		{token.LBRACE, "{"},
