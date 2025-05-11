@@ -1,0 +1,47 @@
+% words_only.gtex
+% This file demonstrates newline behavior in Gotex
+% using plain words and implicit layout — no macros or punctuation.
+
+% ------------------------------------------------
+% Variant 1: Double newline (blank line)
+% This creates a new paragraph in LaTeX/Gotex.
+% Paragraphs are separated by vertical space.
+% ------------------------------------------------
+
+hello world
+
+this is a new paragraph using a double newline
+
+% ------------------------------------------------
+% Variant 2: Single newline
+% LaTeX and Gotex ignore single newlines and treat them as spaces.
+% The result is one continuous paragraph.
+% ------------------------------------------------
+
+this is a single line
+broken across multiple
+source lines but rendered
+as a single paragraph
+
+% ------------------------------------------------
+% Variant 3: Forced line break using `\\`
+% This causes an explicit line break within a paragraph.
+% It is like pressing "Enter" but without ending the paragraph.
+% ------------------------------------------------
+
+this line ends here \\
+and this starts on the next line \\
+still within the same paragraph
+
+% ------------------------------------------------
+% Summary:
+% - Double newline → new paragraph
+% - Single newline → treated as space
+% - `\\` → line break, same paragraph
+% Gotex implicitly wraps all this in:
+%
+% \documentclass{article}
+% \begin{document}
+% ...
+% \end{document}
+% ------------------------------------------------
