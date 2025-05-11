@@ -12,6 +12,9 @@ if [ ! -d "$source_dir" ]; then
   exit 1
 fi
 
+# Create output_file if not exist
+touch $output_file
+
 # Get absolute paths
 source_dir=$(realpath "$source_dir")
 output_file=$(realpath "$output_file")
