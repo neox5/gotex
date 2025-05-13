@@ -3,6 +3,7 @@ package scanner
 import (
 	"fmt"
 	"io"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/neox5/gotex/token"
@@ -141,23 +142,46 @@ func (s *Scanner) scanCommand() (token.Token, string) {
 	}
 
 	// Extract the command name from source (without the \)
-	cmdName := string(s.src[offs:s.offset])
+	name := string(s.src[offs:s.offset])
 
+	if name == "newline" {
+		// Normalize \newline → linebreak
+		return token.COMMAND, "linebreak"
+	}
 	// Look up keyword or return command token (fallback if no keyword)
-	return token.LookupKeyword(cmdName), cmdName
+	return token.LookupKeyword(name), name
 }
 
 // scanWord scans a word (sequence of letters)
 func (s *Scanner) scanWord() string {
-	offs := s.offset
+	var builder strings.Builder
 
-	// Scan the word
-	for isLetter(s.ch) {
-		s.next()
+loop:
+	for {
+		switch {
+		case isLetter(s.ch) || isDigit(s.ch):
+			builder.WriteRune(s.ch)
+			s.next()
+
+		case s.ch == '\\':
+			cmdOffs := s.offset // remember position before consuming '\'
+			s.next()
+			if token.IsSymbol(s.ch) {
+				builder.WriteRune(s.ch) // append the symbol (not the backslash)
+				s.next()
+			} else {
+				// Not a valid escape inside a word, roll back
+				s.rdOffset = cmdOffs
+				s.next() // re-read the backslash
+				break loop
+			}
+
+		default:
+			break loop
+		}
 	}
 
-	// Extract the word from source
-	return string(s.src[offs:s.offset])
+	return builder.String()
 }
 
 // scanNumber scans a number (integer only)
@@ -185,44 +209,47 @@ func (s *Scanner) skipWhitespace() bool {
 
 // Scan scans the next token and returns its position, token type, and literal string
 func (s *Scanner) Scan() (pos token.Pos, tok token.Token, lit string) {
-	// Skip whitespace
 	s.skipWhitespace()
-
 	pos = s.file.Pos(s.offset)
 
-	// Determine token based on the current character
 	switch ch := s.ch; {
 	case isLetter(ch):
 		tok = token.WORD
 		lit = s.scanWord()
 
 	case ch == '\\':
-		s.next() // consume the \
+		s.next() // consume '\'
 
-		switch ch = s.ch; {
-		case isCommandChar(ch):
-			tok, lit = s.scanCommand()
-
-		case token.IsSymbol(ch):
-			s.next()
-			tok = token.WORD
-			lit = string(ch)
-
-		case isSpaceChar(ch) || ch == '\n':
-			// Special case: if \ is followed by a space or newline,
-			// it's a special "control space" or escaped newline
-			cmd := ""
-			if ch == '\n' {
-				cmd = "newline"
-			} else {
-				cmd = "space"
-			}
-			s.next() // consume the space/newline
-			tok, lit = token.COMMAND, cmd
+		switch s.ch {
+		case '\\':
+			s.next() // consume second backslash
+			tok, lit = token.COMMAND, "linebreak"
+			return
 
 		default:
-			s.next()
-			tok, lit = token.ILLEGAL, string(ch)
+			switch {
+			case isCommandChar(s.ch):
+				tok, lit = s.scanCommand()
+
+			case token.IsSymbol(s.ch):
+				// Escaped symbol like \$ — handled as part of a word
+				s.offset-- // backtrack to include the '\'
+				tok = token.WORD
+				lit = s.scanWord()
+
+			case isSpaceChar(s.ch):
+				s.next()
+				tok, lit = token.COMMAND, "space"
+
+			case s.ch == '\n':
+				// Escaped newline (line continuation) → skip both tokens
+				s.next()
+				return s.Scan() // recurse to skip and rescan
+
+			default:
+				s.next()
+				tok, lit = token.ILLEGAL, string(s.ch)
+			}
 		}
 
 	case ch == '\n':
@@ -236,7 +263,6 @@ func (s *Scanner) Scan() (pos token.Pos, tok token.Token, lit string) {
 		lit = s.scanNumber()
 
 	case ch == '%':
-		// Comment
 		tok = token.COMMENT
 		lit = s.scanComment()
 
@@ -250,8 +276,7 @@ func (s *Scanner) Scan() (pos token.Pos, tok token.Token, lit string) {
 		lit = "EOF"
 
 	default:
-		// Anything else is treated as illegal
-		s.next() // consume the character
+		s.next()
 		tok = token.ILLEGAL
 		lit = string(ch)
 		s.error(s.offset, fmt.Sprintf("illegal character %#U", ch))

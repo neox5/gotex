@@ -70,8 +70,7 @@ func TestScanKeywords(t *testing.T) {
 	expected := []tokenData{
 		{token.IMPORT, "import"},
 		{token.LBRACE, "{"},
-		{token.WORD, "chapter"},
-		{token.NUMBER, "1"},
+		{token.WORD, "chapter1"},
 		{token.RBRACE, "}"},
 		{token.NEWLINE, "\n"},
 		{token.ENV, "begin"},
@@ -89,27 +88,28 @@ func TestScanKeywords(t *testing.T) {
 	runScannerTest(t, src, expected, "comment_test.tex")
 }
 
-func TestEscapedSymbols(t *testing.T) {
-	src := `\\ \ \newline \@\$\%\&\#\_\{\}\~\^`
-
+func TestWordsWithEscapedSymbols(t *testing.T) {
+	src := `foo\$bar a\_b hello\@world`
 	expected := []tokenData{
-		{token.WORD, "\\"},
-		{token.COMMAND, "space"},
-		{token.COMMAND, "newline"},
-		{token.WORD, "@"},
-		{token.WORD, "$"},
-		{token.WORD, "%"},
-		{token.WORD, "&"},
-		{token.WORD, "#"},
-		{token.WORD, "_"},
-		{token.WORD, "{"},
-		{token.WORD, "}"},
-		{token.WORD, "~"},
-		{token.WORD, "^"},
+		{token.WORD, "foo$bar"},
+		{token.WORD, "a_b"},
+		{token.WORD, "hello@world"},
 		{token.EOF, "EOF"},
 	}
+	runScannerTest(t, src, expected, "escaped_in_words_test.tex")
+}
 
-	runScannerTest(t, src, expected, "special_commands_test.tex")
+func TestEscapedNewlineAndSpace(t *testing.T) {
+	src := `word1\newline word2\ word3`
+	expected := []tokenData{
+		{token.WORD, "word1"},
+		{token.COMMAND, "linebreak"},
+		{token.WORD, "word2"},
+		{token.COMMAND, "space"},
+		{token.WORD, "word3"},
+		{token.EOF, "EOF"},
+	}
+	runScannerTest(t, src, expected, "escaped_commands_test.tex")
 }
 
 func TestScanCommands(t *testing.T) {
